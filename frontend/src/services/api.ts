@@ -1,5 +1,5 @@
 import type {
-  Tag, TagCreate, Recipe, RecipeCreate, Rule,
+  Tag, TagCreate, Recipe, RecipeCreate, RecipeUpdate, Rule,
   ConstraintRuleCreate, ActionRuleCreate, WeeklyPlan,
   PlanEntryUpdate, ValidationResult, AuthResponse
 } from '../types';
@@ -112,6 +112,13 @@ class ApiService {
   async createRecipe(data: RecipeCreate): Promise<Recipe> {
     return this.fetch<Recipe>('/recipes', {
       method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateRecipe(recipeId: string, data: RecipeUpdate): Promise<Recipe> {
+    return this.fetch<Recipe>(`/recipes/${recipeId}`, {
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   }

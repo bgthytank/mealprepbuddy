@@ -33,6 +33,13 @@ export interface RecipeCreate {
   notes?: string;
 }
 
+export interface RecipeUpdate {
+  title?: string;
+  tag_ids?: string[];
+  default_servings?: number;
+  notes?: string;
+}
+
 // Rules
 export type RuleKind = 'CONSTRAINT' | 'ACTION';
 export type ConstraintType = 'MAX_MEALS_PER_WEEK_BY_TAG';

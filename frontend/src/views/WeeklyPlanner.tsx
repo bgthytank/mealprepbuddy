@@ -206,7 +206,7 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
                     size={16}
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="font-bold text-sm truncate">{recipe.title}</div>
+                    <div className="font-bold text-sm line-clamp-2 leading-snug" title={recipe.title}>{recipe.title}</div>
                     <div className="flex gap-1.5 mt-2 flex-wrap">
                       {recipe.tag_ids.slice(0, 2).map((tid) => {
                         const t = getTag(tid);
@@ -278,7 +278,7 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
 
         {/* Calendar Grid */}
         <div className="flex-1 overflow-auto bg-slate-50/30 custom-scrollbar">
-          <div className="p-8 min-w-[900px]">
+          <div className="p-8 min-w-[900px] w-full max-w-[1600px] mx-auto">
             <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
               {/* Header: Days */}
               <div className="grid grid-cols-[120px_repeat(7,1fr)] border-b border-slate-100">
@@ -344,7 +344,7 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
                           className="h-full bg-white rounded-2xl border-2 border-slate-100 p-4 shadow-sm hover:shadow-xl hover:border-slate-300 transition-all group cursor-grab active:cursor-grabbing flex flex-col"
                         >
                           <div className="flex justify-between items-start gap-2 mb-2">
-                            <span className="font-extrabold text-sm text-slate-900 leading-tight line-clamp-2">
+                            <span className="font-extrabold text-sm text-slate-900 leading-tight line-clamp-3" title={plannedRecipe.title}>
                               {plannedRecipe.title}
                             </span>
                             <button

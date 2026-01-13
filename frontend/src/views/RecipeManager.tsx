@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Plus, Search, Tag as TagIcon, ChefHat, Trash2, Layers, X } from 'lucide-react';
-import type { Recipe, Tag, TagType, RecipeCreate, TagCreate } from '../types';
+import { Plus, Search, Tag as TagIcon, ChefHat, Trash2, Layers, X, Edit } from 'lucide-react';
+import { Modal } from '../components/ui/Modal';
+import type { Recipe, Tag, TagType, RecipeCreate, RecipeUpdate, TagCreate } from '../types';
 
 interface RecipeManagerProps {
   recipes: Recipe[];
   tags: Tag[];
   onAddRecipe: (recipe: RecipeCreate) => void;
+  onEditRecipe: (id: string, recipe: RecipeUpdate) => void;
   onDeleteRecipe: (id: string) => void;
   onAddTag: (tag: TagCreate) => void;
   onDeleteTag: (id: string) => void;
@@ -17,6 +19,7 @@ export const RecipeManager: React.FC<RecipeManagerProps> = ({
   recipes,
   tags,
   onAddRecipe,
+  onEditRecipe,
   onDeleteRecipe,
   onAddTag,
   onDeleteTag,
@@ -33,6 +36,8 @@ export const RecipeManager: React.FC<RecipeManagerProps> = ({
   });
   const [filterText, setFilterText] = useState('');
   const [activeSection, setActiveSection] = useState<'recipes' | 'tags'>('recipes');
+  const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
+  const [editRecipeData, setEditRecipeData] = useState<Partial<RecipeUpdate>>({});
 
   const handleToggleTag = (tagId: string) => {
     const currentTags = [...(newRecipe.tag_ids || [])];
@@ -61,6 +66,34 @@ export const RecipeManager: React.FC<RecipeManagerProps> = ({
     if (newTag.name.trim()) {
       onAddTag({ name: newTag.name.trim(), type: newTag.type });
       setNewTag({ ...newTag, name: '' });
+    }
+  };
+
+  const handleEditClick = (recipe: Recipe) => {
+    setEditingRecipe(recipe);
+    setEditRecipeData({
+      title: recipe.title,
+      notes: recipe.notes || '',
+      tag_ids: recipe.tag_ids,
+      default_servings: recipe.default_servings,
+    });
+  };
+
+  const handleEditToggleTag = (tagId: string) => {
+    const currentTags = [...(editRecipeData.tag_ids || [])];
+    if (currentTags.includes(tagId)) {
+      setEditRecipeData({ ...editRecipeData, tag_ids: currentTags.filter((id) => id !== tagId) });
+    } else {
+      setEditRecipeData({ ...editRecipeData, tag_ids: [...currentTags, tagId] });
+    }
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingRecipe && editRecipeData.title && editRecipeData.tag_ids?.length) {
+      onEditRecipe(editingRecipe.recipe_id, editRecipeData as RecipeUpdate);
+      setEditingRecipe(null);
+      setEditRecipeData({});
     }
   };
 
@@ -281,13 +314,22 @@ export const RecipeManager: React.FC<RecipeManagerProps> = ({
                       <h3 className="text-xl font-black text-slate-900 group-hover:underline underline-offset-4 decoration-4 decoration-slate-900/10 transition-all">
                         {recipe.title}
                       </h3>
-                      <button
-                        onClick={() => onDeleteRecipe(recipe.recipe_id)}
-                        className="opacity-0 group-hover:opacity-100 p-2 text-slate-300 hover:text-red-500 transition-all"
-                        title="Delete recipe"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handleEditClick(recipe)}
+                          className="opacity-0 group-hover:opacity-100 p-2 text-slate-300 hover:text-blue-500 transition-all"
+                          title="Edit recipe"
+                        >
+                          <Edit size={18} />
+                        </button>
+                        <button
+                          onClick={() => onDeleteRecipe(recipe.recipe_id)}
+                          className="opacity-0 group-hover:opacity-100 p-2 text-slate-300 hover:text-red-500 transition-all"
+                          title="Delete recipe"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
                     </div>
                     <p className="text-xs text-slate-400 mb-2">
                       <span className="font-bold">{recipe.default_servings}</span> servings
@@ -356,6 +398,122 @@ export const RecipeManager: React.FC<RecipeManagerProps> = ({
           )}
         </div>
       </div>
+
+      {/* Edit Recipe Modal */}
+      <Modal
+        isOpen={!!editingRecipe}
+        onClose={() => {
+          setEditingRecipe(null);
+          setEditRecipeData({});
+        }}
+        title="Edit Recipe"
+        size="lg"
+      >
+        <form onSubmit={handleEditSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              Recipe Title
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Italian Lasagna"
+              className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-slate-900 outline-none transition-all font-bold"
+              value={editRecipeData.title || ''}
+              onChange={(e) => setEditRecipeData({ ...editRecipeData, title: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              Default Servings
+            </label>
+            <input
+              type="number"
+              min={1}
+              required
+              className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-slate-900 outline-none transition-all font-bold"
+              value={editRecipeData.default_servings || 4}
+              onChange={(e) =>
+                setEditRecipeData({ ...editRecipeData, default_servings: parseInt(e.target.value) || 4 })
+              }
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              Notes (Optional)
+            </label>
+            <textarea
+              placeholder="Brief summary of preparation..."
+              className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-sm min-h-[100px] resize-none"
+              value={editRecipeData.notes || ''}
+              onChange={(e) => setEditRecipeData({ ...editRecipeData, notes: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-4">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+              Tags (Select at least 1)
+            </label>
+            <div className="max-h-64 overflow-y-auto pr-2 space-y-5 custom-scrollbar">
+              {TAG_TYPES.map((type) => {
+                const typeTags = tags.filter((t) => t.type === type);
+                if (typeTags.length === 0) return null;
+                return (
+                  <div key={type}>
+                    <span className="text-[10px] font-bold text-slate-300 uppercase block mb-2">
+                      {type}
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {typeTags.map((tag) => {
+                        const isActive = editRecipeData.tag_ids?.includes(tag.tag_id);
+                        return (
+                          <button
+                            key={tag.tag_id}
+                            type="button"
+                            onClick={() => handleEditToggleTag(tag.tag_id)}
+                            className={`
+                              px-4 py-2 rounded-xl text-xs font-black transition-all border-2
+                              ${
+                                isActive
+                                  ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+                                  : 'bg-white text-slate-400 border-slate-100 hover:border-slate-300'
+                              }
+                            `}
+                          >
+                            {tag.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={() => {
+                setEditingRecipe(null);
+                setEditRecipeData({});
+              }}
+              className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-2xl transition-all"
+            >
+              CANCEL
+            </button>
+            <button
+              type="submit"
+              disabled={!editRecipeData.title || !editRecipeData.tag_ids?.length}
+              className="flex-1 py-4 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-2xl shadow-xl disabled:opacity-30 disabled:grayscale transition-all"
+            >
+              SAVE CHANGES
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

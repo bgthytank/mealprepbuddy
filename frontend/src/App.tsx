@@ -127,6 +127,16 @@ const App: React.FC = () => {
     }
   };
 
+  const handleEditRecipe = async (id: string, recipeData: Parameters<typeof api.updateRecipe>[1]) => {
+    try {
+      const updated = await api.updateRecipe(id, recipeData);
+      setRecipes((prev) => prev.map((r) => (r.recipe_id === id ? updated : r)));
+      addNotification('success', `Recipe "${updated.title}" updated.`);
+    } catch (err) {
+      addNotification('error', err instanceof Error ? err.message : 'Failed to update recipe');
+    }
+  };
+
   const handleDeleteRecipe = async (id: string) => {
     try {
       await api.deleteRecipe(id);
@@ -338,6 +348,7 @@ const App: React.FC = () => {
             recipes={recipes}
             tags={tags}
             onAddRecipe={handleAddRecipe}
+            onEditRecipe={handleEditRecipe}
             onDeleteRecipe={handleDeleteRecipe}
             onAddTag={handleAddTag}
             onDeleteTag={handleDeleteTag}
