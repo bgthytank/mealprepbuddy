@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Download, RefreshCw, Utensils, GripVertical, AlertCircle, Check, X } from 'lucide-react';
+import { Download, RefreshCw, Utensils, GripVertical, AlertCircle, Check, X, Plus } from 'lucide-react';
 import { Modal } from '../components/ui/Modal';
+import { useIsMobile } from '../hooks/useIsMobile';
 import type { Recipe, Tag, WeeklyPlan, DragItem, TagType } from '../types';
 
 interface WeeklyPlannerProps {
@@ -52,6 +53,7 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
   onExport,
   onWeekChange,
 }) => {
+  const isMobile = useIsMobile();
   const [weekOffset, setWeekOffset] = useState<0 | 1>(0);
   const [draggedItem, setDraggedItem] = useState<DragItem | null>(null);
   const [dragOverCell, setDragOverCell] = useState<string | null>(null);
@@ -61,6 +63,11 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
     date: string | null;
   }>({ isOpen: false, tagId: null, date: null });
   const [servingsEdit, setServingsEdit] = useState<{ date: string; servings: number } | null>(null);
+  const [mobileAddRecipe, setMobileAddRecipe] = useState<{
+    isOpen: boolean;
+    date: string | null;
+    selectedTags: string[];
+  }>({ isOpen: false, date: null, selectedTags: [] });
 
   const monday = useMemo(() => {
     const start = getMondayOfCurrentWeek();
@@ -146,12 +153,47 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
     }
   };
 
+  // Mobile handlers
+  const handleMobileCellClick = (date: string) => {
+    if (isMobile) {
+      setMobileAddRecipe({ isOpen: true, date, selectedTags: [] });
+    }
+  };
+
+  const handleMobileToggleTag = (tagId: string) => {
+    setMobileAddRecipe((prev) => ({
+      ...prev,
+      selectedTags: prev.selectedTags.includes(tagId)
+        ? prev.selectedTags.filter((id) => id !== tagId)
+        : [...prev.selectedTags, tagId],
+    }));
+  };
+
+  const handleMobileSelectRecipe = (recipeId: string) => {
+    const { date } = mobileAddRecipe;
+    if (date) {
+      const recipe = getRecipe(recipeId);
+      if (recipe) {
+        onUpdateEntry(date, recipeId, recipe.default_servings);
+      }
+    }
+    setMobileAddRecipe({ isOpen: false, date: null, selectedTags: [] });
+  };
+
+  const mobileFilteredRecipes = useMemo(() => {
+    if (mobileAddRecipe.selectedTags.length === 0) return recipes;
+    return recipes.filter((r) =>
+      mobileAddRecipe.selectedTags.some((tagId) => r.tag_ids.includes(tagId))
+    );
+  }, [recipes, mobileAddRecipe.selectedTags]);
+
   const entries = plan?.entries || {};
 
   return (
     <div className="flex flex-col lg:flex-row h-full lg:h-[calc(100vh-80px)] overflow-hidden bg-white font-sans text-slate-900">
-      {/* SIDEBAR: PANTRY */}
-      <div className="w-full lg:w-80 bg-white border-r border-slate-200 flex flex-col shrink-0 lg:h-full overflow-hidden">
+      {/* SIDEBAR: PANTRY - Hidden on mobile */}
+      {!isMobile && (
+        <div className="w-full lg:w-80 bg-white border-r border-slate-200 flex flex-col shrink-0 lg:h-full overflow-hidden">
         <div className="p-6 border-b border-slate-100">
           <h2 className="text-xl font-bold tracking-tight mb-1">Pantry</h2>
           <p className="text-xs text-slate-400">Drag items to plan your week.</p>
@@ -230,6 +272,7 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
           </div>
         </div>
       </div>
+      )}
 
       {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
@@ -407,8 +450,19 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
                           </div>
                         </div>
                       ) : (
-                        <div className="h-full border-2 border-dashed border-slate-100 rounded-2xl flex items-center justify-center transition-opacity opacity-40">
-                          <Utensils size={24} className="text-slate-100" />
+                        <div
+                          onClick={() => isMobile && handleMobileCellClick(dateStr)}
+                          className={`h-full border-2 border-dashed border-slate-100 rounded-2xl flex items-center justify-center transition-all ${
+                            isMobile
+                              ? 'opacity-70 hover:opacity-100 hover:border-slate-300 cursor-pointer active:scale-95'
+                              : 'opacity-40'
+                          }`}
+                        >
+                          {isMobile ? (
+                            <Plus size={32} className="text-slate-300" />
+                          ) : (
+                            <Utensils size={24} className="text-slate-100" />
+                          )}
                         </div>
                       )}
                     </div>
@@ -454,6 +508,101 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
               </p>
             </div>
           )}
+        </div>
+      </Modal>
+
+      {/* Mobile Recipe Selection Modal */}
+      <Modal
+        isOpen={mobileAddRecipe.isOpen}
+        onClose={() => setMobileAddRecipe({ isOpen: false, date: null, selectedTags: [] })}
+        title="Add Recipe"
+        size="lg"
+      >
+        <div className="space-y-6">
+          {/* Tag Selection */}
+          <div>
+            <h3 className="text-sm font-black text-slate-900 mb-3 uppercase tracking-wide">
+              Filter by Tags (Optional)
+            </h3>
+            <div className="space-y-4">
+              {TAG_TYPES.map((type) => {
+                const typeTags = tags.filter((t) => t.type === type);
+                if (typeTags.length === 0) return null;
+                return (
+                  <div key={type}>
+                    <div className="text-[10px] text-slate-400 font-bold mb-2 uppercase tracking-wider">
+                      {type}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {typeTags.map((tag) => {
+                        const isSelected = mobileAddRecipe.selectedTags.includes(tag.tag_id);
+                        return (
+                          <button
+                            key={tag.tag_id}
+                            type="button"
+                            onClick={() => handleMobileToggleTag(tag.tag_id)}
+                            className={`px-4 py-2 rounded-xl text-xs font-black transition-all border-2 ${
+                              isSelected
+                                ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+                                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                            }`}
+                          >
+                            {tag.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Recipe Selection */}
+          <div>
+            <h3 className="text-sm font-black text-slate-900 mb-3 uppercase tracking-wide">
+              Select Recipe
+            </h3>
+            <div className="max-h-96 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+              {mobileFilteredRecipes.length > 0 ? (
+                mobileFilteredRecipes.map((recipe) => (
+                  <button
+                    key={recipe.recipe_id}
+                    onClick={() => handleMobileSelectRecipe(recipe.recipe_id)}
+                    className="w-full p-4 rounded-2xl border-2 border-slate-100 hover:border-slate-900 hover:bg-slate-50 transition-all text-left group"
+                  >
+                    <div className="font-bold text-slate-900 text-sm mb-2">{recipe.title}</div>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {recipe.tag_ids.slice(0, 3).map((tid) => {
+                        const t = getTag(tid);
+                        return t ? (
+                          <span
+                            key={tid}
+                            className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[9px] font-bold rounded-full uppercase"
+                          >
+                            {t.name}
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
+                    {recipe.notes && (
+                      <p className="text-xs text-slate-500 mt-2 line-clamp-2">{recipe.notes}</p>
+                    )}
+                  </button>
+                ))
+              ) : (
+                <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100">
+                  <AlertCircle className="mx-auto text-slate-200 mb-3" size={40} />
+                  <p className="text-slate-900 font-bold text-sm">No recipes found</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {mobileAddRecipe.selectedTags.length > 0
+                      ? 'Try selecting different tags'
+                      : 'Add recipes in the Recipes tab first'}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </Modal>
     </div>

@@ -15,6 +15,10 @@ use_container = false
 
 [dev.deploy.parameters]
 stack_name = "mealprepbuddy-dev"
+resolve_s3 = true
+s3_prefix = "mealprepbuddy"
+region = "us-west-2"
+capabilities = "CAPABILITY_IAM"
 parameter_overrides = "Environment=dev"
 
 [prod.deploy.parameters]
