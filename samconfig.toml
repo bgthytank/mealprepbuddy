@@ -1,0 +1,22 @@
+# MealPrepBuddy SAM Configuration
+
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "mealprepbuddy"
+resolve_s3 = true
+s3_prefix = "mealprepbuddy"
+region = "us-west-2"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+
+[default.build.parameters]
+use_container = false
+
+[dev.deploy.parameters]
+stack_name = "mealprepbuddy-dev"
+parameter_overrides = "Environment=dev"
+
+[prod.deploy.parameters]
+stack_name = "mealprepbuddy-prod"
+parameter_overrides = "Environment=prod"
