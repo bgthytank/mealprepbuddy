@@ -101,6 +101,7 @@ export interface PlanEntry {
 export interface WeeklyPlan {
   week_start_date: string;
   entries: Record<string, PlanEntry | null>;
+  school_lunch_entries: Record<string, PlanEntry>;
   household_id: string;
   updated_at: string;
 }

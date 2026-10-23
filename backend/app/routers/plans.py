@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Response
-from datetime import datetime
+from datetime import datetime, date, timedelta
+from ..models.plan import SchoolLunchUpdate
 
 from ..models import WeeklyPlan, PlanEntry, PlanEntryUpdate, ValidationResult
 from ..services.auth import get_current_user
@@ -41,6 +42,7 @@ async def get_weekly_plan(
     return WeeklyPlan(
         week_start_date=plan["week_start_date"],
         entries=entries,
+        school_lunch_entries=plan.get("school_lunch_entries", {}),
         household_id=plan["household_id"],
         updated_at=datetime.fromisoformat(plan["updated_at"]),
     )
@@ -74,6 +76,7 @@ async def update_plan_entry(
     return WeeklyPlan(
         week_start_date=plan["week_start_date"],
         entries=entries,
+        school_lunch_entries=plan.get("school_lunch_entries", {}),
         household_id=plan["household_id"],
         updated_at=datetime.fromisoformat(plan["updated_at"]),
     )
@@ -113,6 +116,7 @@ async def delete_plan_entry(
     return WeeklyPlan(
         week_start_date=plan["week_start_date"],
         entries=entries,
+        school_lunch_entries=plan.get("school_lunch_entries", {}),
         household_id=plan["household_id"],
         updated_at=datetime.fromisoformat(plan["updated_at"]),
     )
@@ -176,3 +180,35 @@ async def export_ics(
             "Content-Disposition": f"attachment; filename=mealprep_{week_start_date}.ics"
         },
     )
+
+
+@router.put("/{week_start_date}/school-lunch", response_model=WeeklyPlan)
+async def update_school_lunch(
+    week_start_date: str,
+    data: SchoolLunchUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    """Save five distinct eligible lunches together, preserving dinner entries."""
+    try:
+        monday = date.fromisoformat(week_start_date)
+        if monday.weekday() != 0 or monday.isoformat() != week_start_date:
+            raise ValueError()
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Week must start on a Monday (YYYY-MM-DD).")
+    household_id = current_user["household_id"]
+    tags = db_service.get_tags(household_id)
+    lunch_tags = {t["tag_id"] for t in tags if t["name"].strip().replace("’", "'").casefold() == "ran's school lunch"}
+    recipes = {r["recipe_id"]: r for r in db_service.get_recipes(household_id)
+               if lunch_tags.intersection(r.get("tag_ids", []))}
+    if len(set(data.recipe_ids)) != 5 or any(rid not in recipes for rid in data.recipe_ids):
+        raise HTTPException(status_code=422, detail="Choose five different recipes tagged Ran's school lunch.")
+    entries = {(monday + timedelta(days=i)).isoformat(): {
+        "recipe_id": rid, "servings": recipes[rid]["default_servings"]
+    } for i, rid in enumerate(data.recipe_ids)}
+    db_service.table.update_item(
+        Key={"pk": f"HOUSE#{household_id}", "sk": f"WEEK#{week_start_date}"},
+        UpdateExpression="SET school_lunch_entries = :lunch, week_start_date = :week, household_id = :household, updated_at = :now, entries = if_not_exists(entries, :empty)",
+        ExpressionAttributeValues={":lunch": entries, ":week": week_start_date, ":household": household_id,
+                                   ":now": datetime.utcnow().isoformat(), ":empty": {}},
+    )
+    return await get_weekly_plan(week_start_date, current_user)

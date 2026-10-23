@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Download, RefreshCw, Utensils, GripVertical, AlertCircle, Check, X, Plus } from 'lucide-react';
+import { Download, RefreshCw, Utensils, GripVertical, AlertCircle, Check, X, Plus, Sparkles } from 'lucide-react';
+import { LuckyLunch, type DrawMode } from '../components/LuckyLunch';
 import { Modal } from '../components/ui/Modal';
 import { useIsMobile } from '../hooks/useIsMobile';
 import type { Recipe, Tag, WeeklyPlan, DragItem, TagType } from '../types';
@@ -14,6 +15,7 @@ interface WeeklyPlannerProps {
   onValidate: () => void;
   onExport: () => void;
   onWeekChange: (weekStartDate: string) => void;
+  onConfirmLunch: (recipeIds: string[]) => Promise<void>;
 }
 
 const getMondayOfCurrentWeek = () => {
@@ -52,8 +54,14 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
   onValidate,
   onExport,
   onWeekChange,
+  onConfirmLunch,
 }) => {
   const isMobile = useIsMobile();
+  const [drawOpen, setDrawOpen] = useState(false);
+  const [drawMode, setDrawMode] = useState<DrawMode>(() => localStorage.getItem('lunch-draw-mode') === 'dice' ? 'dice' : 'powerball');
+  const lunchTagIds = tags.filter(t => t.name.trim().replace(/’/g, "'").toLowerCase() === "ran's school lunch").map(t => t.tag_id);
+  const lunchRecipes = recipes.filter(r => r.tag_ids.some(id => lunchTagIds.includes(id)));
+  const chooseMode = (mode: DrawMode) => { setDrawMode(mode); localStorage.setItem('lunch-draw-mode', mode); };
   const [weekOffset, setWeekOffset] = useState<0 | 1>(0);
   const [draggedItem, setDraggedItem] = useState<DragItem | null>(null);
   const [dragOverCell, setDragOverCell] = useState<string | null>(null);
@@ -319,6 +327,14 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
           </div>
         </div>
 
+        <section className="lunch-toolbar" aria-label="School lunch draw">
+          <div className="flex-1 min-w-0"><p className="text-[10px] font-bold uppercase tracking-[.18em] text-slate-400 mb-1">A little less planning</p><h2 className="font-bold text-lg tracking-tight">Ran’s school lunch</h2>
+            <p className="text-xs text-slate-500 mt-1">{lunchRecipes.length >= 5 ? `${lunchRecipes.length} recipes. Five weekdays. Let luck plan lunch.` : `Add ${5 - lunchRecipes.length} more ${lunchRecipes.length === 4 ? 'recipe' : 'recipes'} tagged “Ran’s school lunch” in Recipes to draw five different lunches.`}</p></div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="lucky-mode" role="group" aria-label="Draw animation">{(['powerball', 'dice'] as const).map(mode => <button key={mode} onClick={() => chooseMode(mode)} aria-pressed={drawMode === mode} className={drawMode === mode ? 'is-active' : ''}>{mode === 'dice' ? 'Dice' : 'Powerball'}</button>)}</div>
+            <button className="lucky-primary" disabled={lunchRecipes.length < 5} onClick={() => setDrawOpen(true)}><Sparkles size={16} />I feel lucky</button>
+          </div>
+        </section>
         {/* Calendar Grid */}
         <div className="flex-1 overflow-auto bg-slate-50/30 custom-scrollbar">
           <div className="p-8 min-w-[900px] w-full max-w-[1600px] mx-auto">
@@ -327,7 +343,7 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
               <div className="grid grid-cols-[120px_repeat(7,1fr)] border-b border-slate-100">
                 <div className="p-6 bg-slate-50/50 flex flex-col justify-end">
                   <span className="text-[10px] font-extrabold text-slate-300 uppercase tracking-[0.2em]">
-                    Dinner
+                    Weekly menu
                   </span>
                 </div>
                 {weekDays.map((d) => {
@@ -349,6 +365,17 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
                       <div className="mt-2 text-2xl font-black">{d.getDate()}</div>
                     </div>
                   );
+                })}
+              </div>
+
+              <div className="grid grid-cols-[120px_repeat(7,1fr)] border-b border-slate-100" aria-label="School lunch calendar">
+                <div className="p-4 bg-amber-50/50 flex flex-col justify-center"><span className="text-[10px] font-black uppercase tracking-widest text-slate-600">School lunch</span><span className="text-[10px] text-slate-400 mt-2">Ran · Mon–Fri</span></div>
+                {weekDays.map((d, i) => {
+                  const lunch = plan?.school_lunch_entries?.[formatDate(d)];
+                  const recipe = lunch ? getRecipe(lunch.recipe_id) : null;
+                  return <div key={formatDate(d)} className={`p-3 min-h-[140px] border-l border-slate-100 ${i > 4 ? 'bg-slate-50/70' : 'bg-amber-50/20'}`} data-testid="lunch-cell">
+                    {i > 4 ? <p className="text-[10px] text-slate-300 text-center pt-10">No school</p> : lunch ? <div className="rounded-xl border border-amber-100 bg-white p-3 h-full"><p className="font-bold text-sm break-words">{recipe?.title || 'Recipe removed'}</p><p className="text-[10px] text-slate-400 mt-3">{lunch.servings} servings</p></div> : <p className="text-[11px] text-slate-400 text-center pt-10">Lunch awaits</p>}
+                  </div>;
                 })}
               </div>
 
@@ -474,6 +501,7 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
         </div>
       </div>
 
+      {drawOpen && <LuckyLunch recipes={lunchRecipes} mode={drawMode} weekLabel={`Week of ${monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`} replacing={Object.keys(plan?.school_lunch_entries || {}).length > 0} onClose={() => setDrawOpen(false)} onConfirm={onConfirmLunch} />}
       {/* Modal for Tag Selection */}
       <Modal
         isOpen={tagSelection.isOpen}

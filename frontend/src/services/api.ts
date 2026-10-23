@@ -158,6 +158,13 @@ class ApiService {
   }
 
   // Plans
+  async saveSchoolLunch(weekStartDate: string, recipeIds: string[]): Promise<WeeklyPlan> {
+    return this.fetch<WeeklyPlan>(`/plans/${weekStartDate}/school-lunch`, {
+      method: 'PUT',
+      body: JSON.stringify({ recipe_ids: recipeIds }),
+    });
+  }
+
   async getWeeklyPlan(weekStartDate: string): Promise<WeeklyPlan> {
     return this.fetch<WeeklyPlan>(`/plans/${weekStartDate}`);
   }

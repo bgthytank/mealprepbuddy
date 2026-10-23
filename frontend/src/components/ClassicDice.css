@@ -1,0 +1,97 @@
+.classic-dice-control {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 265px;
+  perspective: 850px;
+  cursor: pointer;
+}
+.classic-dice-control:disabled {
+  cursor: default;
+}
+.classic-dice-position {
+  position: absolute;
+  left: 50%;
+  top: 135px;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+}
+.classic-dice-cube {
+  position: absolute;
+  width: 96px;
+  height: 96px;
+  left: -48px;
+  top: -48px;
+  transform-style: preserve-3d;
+  will-change: transform;
+  transform: rotateX(-24deg) rotateY(-32deg);
+}
+.classic-dice-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 6px;
+  padding: 17px;
+  border: 1px solid #d8dee6;
+  border-radius: 13px;
+  background: linear-gradient(135deg, #fffdf7, #eeeae0);
+  box-shadow:
+    inset 0 0 12px #d5d0c449,
+    inset 1px 1px 2px #ffffffcc;
+  backface-visibility: hidden;
+}
+.classic-dice-face.classic-face-right,
+.classic-dice-face.classic-face-left {
+  background: linear-gradient(135deg, #eeeae0, #dcd6c9);
+}
+.classic-dice-face.classic-face-top {
+  background: linear-gradient(135deg, #fffefa, #f6f2e8);
+}
+.classic-face-front {
+  transform: translateZ(48px);
+}
+.classic-face-back {
+  transform: rotateY(180deg) translateZ(48px);
+}
+.classic-face-right {
+  transform: rotateY(90deg) translateZ(48px);
+}
+.classic-face-left {
+  transform: rotateY(-90deg) translateZ(48px);
+}
+.classic-face-top {
+  transform: rotateX(90deg) translateZ(48px);
+}
+.classic-face-bottom {
+  transform: rotateX(-90deg) translateZ(48px);
+}
+.classic-pip {
+  display: block;
+  border-radius: 50%;
+}
+.classic-pip.is-pip {
+  background: radial-gradient(circle at 45% 65%, #172235, #020617);
+  box-shadow:
+    inset 0 2px 2px #0006,
+    0 1px 0 #fff9;
+}
+.classic-dice-shadow {
+  position: absolute;
+  top: 67px;
+  left: -64px;
+  width: 128px;
+  height: 17px;
+  border-radius: 50%;
+  background: #334155;
+  filter: blur(10px);
+  opacity: 0.28;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .classic-dice-cube {
+    will-change: auto;
+  }
+}

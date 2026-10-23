@@ -341,6 +341,11 @@ const App: React.FC = () => {
             onValidate={handleValidate}
             onExport={handleExport}
             onWeekChange={setWeekStartDate}
+            onConfirmLunch={async (recipeIds) => {
+              const updated = await api.saveSchoolLunch(weekStartDate, recipeIds);
+              setPlan(updated);
+              addNotification('success', "Ran's school lunches added for Monday–Friday.");
+            }}
           />
         )}
         {activeTab === 'recipes' && (

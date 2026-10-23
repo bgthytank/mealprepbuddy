@@ -42,3 +42,7 @@ samconfig.toml.bak
 
 # Excluded directories
 familyfeast-ai/
+
+# Local browser validation recordings and reports
+test-results/
+playwright-report/

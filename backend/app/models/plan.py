@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from typing import Optional, Dict
 import re
@@ -29,9 +29,14 @@ class PlanEntryUpdate(BaseModel):
         return v
 
 
+class SchoolLunchUpdate(BaseModel):
+    recipe_ids: list[str] = Field(min_length=5, max_length=5)
+
+
 class WeeklyPlan(BaseModel):
     week_start_date: str  # YYYY-MM-DD (Monday)
     entries: Dict[str, Optional[PlanEntry]]  # date -> entry
+    school_lunch_entries: Dict[str, PlanEntry] = Field(default_factory=dict)
     household_id: str
     updated_at: datetime
 

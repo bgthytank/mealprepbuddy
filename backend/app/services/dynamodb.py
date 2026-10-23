@@ -371,16 +371,14 @@ class DynamoDBService:
     ) -> dict:
         """Save/update weekly plan"""
         now = datetime.utcnow().isoformat()
-        plan = {
-            "pk": f"HOUSE#{household_id}",
-            "sk": f"WEEK#{week_start_date}",
-            "week_start_date": week_start_date,
-            "entries": entries,
-            "household_id": household_id,
-            "updated_at": now,
-        }
-        self.table.put_item(Item=plan)
-        return plan
+        response = self.table.update_item(
+            Key={"pk": f"HOUSE#{household_id}", "sk": f"WEEK#{week_start_date}"},
+            UpdateExpression="SET entries = :entries, week_start_date = :week, household_id = :household, updated_at = :now",
+            ExpressionAttributeValues={":entries": entries, ":week": week_start_date,
+                                       ":household": household_id, ":now": now},
+            ReturnValues="ALL_NEW",
+        )
+        return response["Attributes"]
 
     def update_plan_entry(
         self,
