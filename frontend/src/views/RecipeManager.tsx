@@ -97,10 +97,15 @@ export const RecipeManager: React.FC<RecipeManagerProps> = ({
     }
   };
 
+  const query = filterText.trim().toLowerCase();
+  const matchingTagIds = new Set(
+    tags.filter((tag) => tag.name.toLowerCase().includes(query)).map((tag) => tag.tag_id)
+  );
   const filteredRecipes = recipes.filter(
     (r) =>
-      r.title.toLowerCase().includes(filterText.toLowerCase()) ||
-      (r.notes || '').toLowerCase().includes(filterText.toLowerCase())
+      r.title.toLowerCase().includes(query) ||
+      (r.notes || '').toLowerCase().includes(query) ||
+      r.tag_ids.some((id) => matchingTagIds.has(id))
   );
 
   const getTag = (id: string) => tags.find((t) => t.tag_id === id);
@@ -140,7 +145,8 @@ export const RecipeManager: React.FC<RecipeManagerProps> = ({
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
               type="text"
-              placeholder="Search recipes..."
+              placeholder="Search recipes or labels..."
+              aria-label="Search recipes or labels"
               className="w-full pl-12 pr-4 py-4 bg-white border-2 border-slate-100 rounded-2xl focus:border-slate-900 outline-none transition-all font-bold text-sm"
               value={filterText}
               onChange={(e) => setFilterText(e.target.value)}

@@ -1,8 +1,17 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './ClassicDice.css';
 
 type Pose = { y: number; rx: number; ry: number; rz: number };
 const rest: Pose = { y: 0, rx: -24, ry: -32, rz: 0 };
+// Orient each numbered face toward the viewer when the roll finishes.
+const landings = [
+  { value: 1, rx: 0, ry: 0 },
+  { value: 2, rx: -90, ry: 0 },
+  { value: 3, rx: 0, ry: -90 },
+  { value: 4, rx: 0, ry: 90 },
+  { value: 5, rx: 90, ry: 0 },
+  { value: 6, rx: 0, ry: 180 },
+];
 const faces = [
   { side: 'front', value: 1, pips: [5] },
   { side: 'back', value: 6, pips: [1, 3, 4, 6, 7, 9] },
@@ -22,6 +31,7 @@ export function ClassicDice({
   const die = useRef<HTMLSpanElement>(null);
   const shadow = useRef<HTMLSpanElement>(null);
   const pose = useRef<Pose>(rest);
+  const [settledFace, setSettledFace] = useState<number | null>(null);
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -39,11 +49,14 @@ export function ClassicDice({
     };
     const start = performance.now();
     const from = { ...pose.current };
-    const targetX = Math.ceil((from.rx - rest.rx) / 360) * 360 + 360 + rest.rx;
-    const targetY = Math.ceil((from.ry - rest.ry) / 360) * 360 + 360 + rest.ry;
+    const landing = landings[Math.floor(Math.random() * landings.length)];
+    const targetX = Math.ceil((from.rx - landing.rx) / 360) * 360 + 360 + landing.rx;
+    const targetY = Math.ceil((from.ry - landing.ry) / 360) * 360 + 360 + landing.ry;
+    setSettledFace(null);
     const animate = (now: number) => {
       if (media.matches) {
-        paint(rest);
+        paint(phase === 'settling' ? { y: 0, rx: targetX, ry: targetY, rz: 0 } : rest);
+        if (phase === 'settling') setSettledFace(landing.value);
         return;
       }
       const t = (now - start) / 1000;
@@ -55,7 +68,8 @@ export function ClassicDice({
           rz: Math.sin(t * 3) * 9,
         });
       } else {
-        const p = Math.min(t / 1.6, 1);
+        // Leave time to see the face before the parent displays lunch results.
+        const p = Math.min(t / 1.1, 1);
         const ease = 1 - Math.pow(1 - p, 3);
         paint({
           y: from.y * (1 - ease) - Math.sin(p * Math.PI) * 10,
@@ -63,7 +77,10 @@ export function ClassicDice({
           ry: from.ry + (targetY - from.ry) * ease,
           rz: from.rz * (1 - ease),
         });
-        if (p === 1) return;
+        if (p === 1) {
+          setSettledFace(landing.value);
+          return;
+        }
       }
       frame = requestAnimationFrame(animate);
     };
@@ -85,7 +102,7 @@ export function ClassicDice({
       className="classic-dice-control"
       onClick={onStop}
       disabled={phase === 'settling'}
-      aria-label={phase === 'settling' ? 'Dice slowing down' : 'Stop dice'}
+      aria-label={settledFace !== null ? `Dice rolled ${settledFace}` : phase === 'settling' ? 'Dice slowing down' : 'Stop dice'}
     >
       <span className="classic-dice-position" aria-hidden="true">
         <span ref={shadow} className="classic-dice-shadow" />

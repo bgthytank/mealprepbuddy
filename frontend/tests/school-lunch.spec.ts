@@ -408,3 +408,65 @@ test('API rejects duplicates, untagged and foreign recipes, invalid weeks, unaut
     recipes[0].title,
   );
 });
+
+
+test('Recipe search matches labels, titles and notes', async ({ page, request }, info) => {
+  const { headers, recipes } = await seed(page, request);
+  const updated = await request.patch(`/api/recipes/${recipes[0].recipe_id}`, {
+    headers, data: { notes: 'Pack with cucumber slices' },
+  });
+  expect(updated.ok()).toBeTruthy();
+  await page.reload();
+  await page.getByRole('button', { name: 'Recipes', exact: true }).first().click();
+  const search = page.getByRole('textbox', { name: 'Search recipes or labels' });
+  const cards = page.locator('h3');
+  await expect(cards).toHaveCount(13);
+  await search.fill('  ScHoOl LuNcH  ');
+  await expect(cards).toHaveCount(12);
+  await expect(page.getByRole('heading', { name: 'Dinner only lasagna' })).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath('label-search.png') });
+  await search.fill('RAN’S SCHOOL LUNCH');
+  await expect(cards).toHaveCount(12);
+  await search.fill('lasagna');
+  await expect(cards).toHaveCount(1);
+  await search.fill('cucumber');
+  await expect(cards).toHaveText(['Chicken rice bowl']);
+  await search.fill('no-matching-label');
+  await expect(page.getByText('No recipes found')).toBeVisible();
+  await search.fill('');
+  await expect(cards).toHaveCount(13);
+});
+
+test('Dice settles on each of six readable faces and supports reduced motion', async ({ page, request }, info) => {
+  await seed(page, request);
+  await page.getByRole('button', { name: 'Dice', exact: true }).click();
+  await page.getByRole('button', { name: 'I feel lucky' }).click();
+  const expectedAngles = [[0, 0], [270, 0], [0, 270], [0, 90], [90, 0], [0, 180]];
+  for (let value = 1; value <= 6; value++) {
+    // Cover every outcome without relying on chance in a regression test.
+    await page.evaluate(value => { Math.random = () => (value - 0.5) / 6; }, value);
+    const cube = page.locator('.classic-dice-cube');
+    const spinning = await cube.getAttribute('style');
+    await page.waitForTimeout(100);
+    expect(await cube.getAttribute('style')).not.toBe(spinning);
+    await page.getByRole('button', { name: 'Stop dice', exact: true }).click();
+    await expect(page.getByRole('button', { name: `Dice rolled ${value}`, exact: true })).toBeVisible();
+    const style = await cube.getAttribute('style');
+    const angles = [...style!.matchAll(/rotate[XY]\(([-\d.]+)deg\)/g)].map(match => ((Number(match[1]) % 360) + 360) % 360);
+    expect(angles).toEqual(expectedAngles[value - 1]);
+    await page.screenshot({ path: info.outputPath(`dice-face-${value}.png`) });
+    await results(page);
+    await page.getByRole('button', { name: 'Do it again' }).click();
+  }
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const cube = page.locator('.classic-dice-cube');
+  await page.waitForTimeout(100);
+  const still = await cube.getAttribute('style');
+  await page.waitForTimeout(100);
+  expect(await cube.getAttribute('style')).toBe(still);
+  await page.getByRole('button', { name: 'Stop dice', exact: true }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name: 'Dice rolled 6', exact: true })).toBeVisible();
+  await page.screenshot({ path: info.outputPath('dice-reduced-motion.png') });
+  await results(page);
+});
